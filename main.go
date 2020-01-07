@@ -1,34 +1,36 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"net/http"
-	"os"
 	"bytes"
-	"io/ioutil"
 	"encoding/json"
 	"log"
+	"net/http"
+	"os"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	sent *prometheus.Desc = prometheus.NewDesc("mandrill_sent_total", "Total number of sent mails.", []string{"tag"}, nil)
-	hardBounces *prometheus.Desc = prometheus.NewDesc("mandrill_hard_bounces", "Number of mails bounced hard", []string{"tag"}, nil)
-	softBounces *prometheus.Desc = prometheus.NewDesc("mandrill_soft_bounces", "Number of mails bounced soft", []string{"tag"}, nil)
-	rejects *prometheus.Desc = prometheus.NewDesc("mandrill_rejects", "Number of mails rejected", []string{"tag"}, nil)
-	complaints *prometheus.Desc = prometheus.NewDesc("mandrill_complaints", "Number of complaints", []string{"tag"}, nil)
-	unsubs *prometheus.Desc = prometheus.NewDesc("mandrill_unsubs", "Number of unsubscribes", []string{"tag"}, nil)
-	opens *prometheus.Desc = prometheus.NewDesc("mandrill_opens", "Number of mails opened", []string{"tag"}, nil)
-	clicks *prometheus.Desc = prometheus.NewDesc("mandrill_clicks", "Number of clicks inside mails", []string{"tag"}, nil)
-	unique_opens *prometheus.Desc = prometheus.NewDesc("mandrill_unique_opens", "Unique number of mails opened", []string{"tag"}, nil)
-	unique_clicks *prometheus.Desc = prometheus.NewDesc("mandrill_unique_clicks", "Unique number of clicks", []string{"tag"}, nil)
-	reputation *prometheus.Desc = prometheus.NewDesc("mandrill_reputation", "Mandrill reputation", []string{"tag"}, nil)
+	sent         = prometheus.NewDesc("mandrill_sent_total", "Total number of sent mails.", []string{"tag"}, nil)
+	hardBounces  = prometheus.NewDesc("mandrill_hard_bounces", "Number of mails bounced hard", []string{"tag"}, nil)
+	softBounces  = prometheus.NewDesc("mandrill_soft_bounces", "Number of mails bounced soft", []string{"tag"}, nil)
+	rejects      = prometheus.NewDesc("mandrill_rejects", "Number of mails rejected", []string{"tag"}, nil)
+	complaints   = prometheus.NewDesc("mandrill_complaints", "Number of complaints", []string{"tag"}, nil)
+	unsubs       = prometheus.NewDesc("mandrill_unsubs", "Number of unsubscribes", []string{"tag"}, nil)
+	opens        = prometheus.NewDesc("mandrill_opens", "Number of mails opened", []string{"tag"}, nil)
+	clicks       = prometheus.NewDesc("mandrill_clicks", "Number of clicks inside mails", []string{"tag"}, nil)
+	uniqueOpens  = prometheus.NewDesc("mandrill_unique_opens", "Unique number of mails opened", []string{"tag"}, nil)
+	uniqueClicks = prometheus.NewDesc("mandrill_unique_clicks", "Unique number of clicks", []string{"tag"}, nil)
+	reputation   = prometheus.NewDesc("mandrill_reputation", "Mandrill reputation", []string{"tag"}, nil)
 )
 
 type mandrillCollector struct {
 	apiKey string
 }
 
-func (m mandrillCollector) Describe(ch chan <- *prometheus.Desc) {
+func (m mandrillCollector) Describe(ch chan<- *prometheus.Desc) {
+
 	ch <- sent
 	ch <- hardBounces
 	ch <- softBounces
@@ -37,28 +39,29 @@ func (m mandrillCollector) Describe(ch chan <- *prometheus.Desc) {
 	ch <- unsubs
 	ch <- opens
 	ch <- clicks
-	ch <- unique_opens
-	ch <- unique_clicks
+	ch <- uniqueOpens
+	ch <- uniqueClicks
 	ch <- reputation
 }
 
 type mandrillTagData struct {
-	Tag           string
-	Sent          int
-	SoftBounces   int  `json:"soft_bounces"`
-	HardBounces   int  `json:"hard_bounces"`
-	Rejects       int
-	Complaints    int
-	Unsubs        int
-	Opens         int
-	Clicks        int
-	Unique_opens  int
-	Unique_clicks int
-	Reputation    int
+	Tag          string
+	Sent         int
+	HardBounces  int `json:"hard_bounces"`
+	SoftBounces  int `json:"soft_bounces"`
+	Rejects      int
+	Complaints   int
+	Unsubs       int
+	Opens        int
+	Clicks       int
+	UniqueOpens  int `json:"unique_opens"`
+	UniqueClicks int `json:"unique_clicks"`
+	Reputation   int
 }
 
-func (m mandrillCollector) Collect(ch chan <- prometheus.Metric) {
+func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
+	log.Print("getting data")
 	//get Tags from Mandrill
 	tagData, err := m.getTags()
 	if err != nil {
@@ -75,8 +78,8 @@ func (m mandrillCollector) Collect(ch chan <- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(unsubs, prometheus.CounterValue, float64(tag.Unsubs), tag.Tag)
 		ch <- prometheus.MustNewConstMetric(opens, prometheus.CounterValue, float64(tag.Opens), tag.Tag)
 		ch <- prometheus.MustNewConstMetric(clicks, prometheus.CounterValue, float64(tag.Clicks), tag.Tag)
-		ch <- prometheus.MustNewConstMetric(unique_opens, prometheus.CounterValue, float64(tag.Unique_opens), tag.Tag)
-		ch <- prometheus.MustNewConstMetric(unique_clicks, prometheus.CounterValue, float64(tag.Unique_clicks), tag.Tag)
+		ch <- prometheus.MustNewConstMetric(uniqueOpens, prometheus.CounterValue, float64(tag.UniqueOpens), tag.Tag)
+		ch <- prometheus.MustNewConstMetric(uniqueClicks, prometheus.CounterValue, float64(tag.UniqueClicks), tag.Tag)
 		ch <- prometheus.MustNewConstMetric(reputation, prometheus.CounterValue, float64(tag.Reputation), tag.Tag)
 	}
 }
@@ -95,10 +98,12 @@ func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
 	if err != nil {
 		return nil, err
 	}
-	respBody, _ := ioutil.ReadAll(resp.Body)
+
+	defer resp.Body.Close()
 
 	result := []mandrillTagData{}
-	err = json.Unmarshal(respBody, &result)
+	err = json.NewDecoder(resp.Body).Decode(&result)
+
 	if err != nil {
 		return nil, err
 	}
@@ -107,24 +112,26 @@ func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
 }
 
 func main() {
+
 	mc := mandrillCollector{
-		apiKey:os.Getenv("MANDRILL_API_KEY"),
+		apiKey: os.Getenv("MANDRILL_API_KEY"),
 	}
 
-	prometheus.MustRegister(mc)
+	reg := prometheus.NewPedanticRegistry()
+
+	reg.MustRegister(mc)
 
 	//default Seite
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
-             <head><title>Mandrill statistics Exporter</title></head>
-             <body>
-             <h1>Madrill statistics Exporter</h1>
-             <p><a href='metrics'>Metrics</a></p>
-             </body>
-             </html>`))
+		             <head><title>Mandrill statistics Exporter</title></head>
+		             <body>
+		             <h1>Madrill statistics Exporter</h1>
+		             <p><a href='metrics'>Metrics</a></p>
+		             </body>
+		             </html>`))
 	})
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	//port 9153 https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 	http.ListenAndServe(":9153", nil)
 }
-

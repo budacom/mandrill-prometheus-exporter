@@ -1,4 +1,4 @@
-FROM golang:1.6-alpine
+FROM golang:1.12-alpine
 
 RUN mkdir -p /go/src/mandrill-prometheus-exporter
 WORKDIR /go/src/mandrill-prometheus-exporter
