@@ -1,0 +1,18 @@
+replicaCount: 1
+
+team: devops
+image: harbor.spotahome.net/devops/mandrill-prometheus-exporter
+tag: c2057ee
+pullPolicy: IfNotPresent
+
+resources:
+  limits:
+   cpu: 100m
+   memory: 200Mi
+  requests:
+   cpu: 20m
+   memory: 100Mi
+
+rbac:
+  imagePullSecrets:
+    - harbor-key

@@ -24,6 +24,3 @@ _testmain.go
 *.prof
 .idea/
 *.iml
-
-#the binary
-mandrill-prometheus-exporter

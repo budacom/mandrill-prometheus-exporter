@@ -61,7 +61,6 @@ type mandrillTagData struct {
 
 func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
-	log.Print("getting data")
 	//get Tags from Mandrill
 	tagData, err := m.getTags()
 	if err != nil {
@@ -121,15 +120,9 @@ func main() {
 
 	reg.MustRegister(mc)
 
-	//default Seite
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
-		             <head><title>Mandrill statistics Exporter</title></head>
-		             <body>
-		             <h1>Madrill statistics Exporter</h1>
-		             <p><a href='metrics'>Metrics</a></p>
-		             </body>
-		             </html>`))
+	//health check
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	})
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	//port 9153 https://github.com/prometheus/prometheus/wiki/Default-port-allocations
