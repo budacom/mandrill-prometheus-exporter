@@ -10,7 +10,7 @@ spec:
   selector:
     matchLabels:
       component: app
-{{ include "common-labels" . | indent 6 }}
+{{ include "selector-labels" . | indent 6 }}
   template:
     metadata:
       labels:
