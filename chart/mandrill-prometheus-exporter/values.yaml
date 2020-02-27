@@ -4,6 +4,7 @@ team: devops
 image: harbor.spotahome.net/devops/mandrill-prometheus-exporter
 tag: c2057ee
 pullPolicy: IfNotPresent
+role: core
 
 resources:
   limits:
