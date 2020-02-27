@@ -7,6 +7,7 @@ app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end }}
 
 {{- define "common-labels" -}}
+{{ include "selector-labels" . }}
 team: {{ .Values.team | quote }}
 {{- end }}
 
