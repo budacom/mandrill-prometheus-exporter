@@ -29,7 +29,7 @@ var (
 	accountCustomQuota = prometheus.NewDesc("mandrill_account_custom_quota", "Accounts Mandrill custom quota", []string{"subaccount"}, nil)
 
 	userReputation  = prometheus.NewDesc("mandrill_user_reputation", "User Mandrill reputation", []string{"username"}, nil)
-	userHourlyQuota = prometheus.NewDesc("mandrill_user_hourlyQuota", "User hourly quota", []string{"username"}, nil)
+	userHourlyQuota = prometheus.NewDesc("mandrill_user_hourly_quota", "User hourly quota", []string{"username"}, nil)
 	userBacklog     = prometheus.NewDesc("mandrill_user_backlog", "User mail backlog", []string{"username"}, nil)
 
 	senderSent = prometheus.NewDesc("mandrill_sender_sent_total", "Sender total number of sent mails.", []string{"address"}, nil)
@@ -56,6 +56,12 @@ func (m mandrillCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- accountSentTotal
 	ch <- accountReputation
 	ch <- accountCustomQuota
+
+	ch <- userReputation
+	ch <- userHourlyQuota
+	ch <- userBacklog
+
+	ch <- senderSent
 }
 
 type mandrillTagData struct {
