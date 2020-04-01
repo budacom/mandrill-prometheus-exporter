@@ -27,7 +27,6 @@ var (
 	accountSentTotal   = prometheus.NewDesc("mandrill_account_sent_total", "Accounts total number of sent mails", []string{"subaccount"}, nil)
 	accountReputation  = prometheus.NewDesc("mandrill_account_reputation", "Accounts Mandrill reputation", []string{"subaccount"}, nil)
 	accountCustomQuota = prometheus.NewDesc("mandrill_account_custom_quota", "Accounts Mandrill custom quota", []string{"subaccount"}, nil)
-	accountStatus      = prometheus.NewDesc("mandrill_account_status", "Accounts Mandrill status", []string{"subaccount"}, nil)
 )
 
 type mandrillCollector struct {
@@ -51,7 +50,6 @@ func (m mandrillCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- accountSentTotal
 	ch <- accountReputation
 	ch <- accountCustomQuota
-	ch <- accountStatus
 }
 
 type mandrillTagData struct {
@@ -74,7 +72,6 @@ type mandrillSubtaccountData struct {
 	CustomQuota int `json:"custom_quota"`
 	Reputation  int
 	SendTotal   int `json:"sent_total"`
-	Status      string
 }
 
 func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
@@ -110,8 +107,7 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, subaccount := range subaccountsData {
 		ch <- prometheus.MustNewConstMetric(accountSentTotal, prometheus.GaugeValue, float64(subaccount.SendTotal), subaccount.ID)
 		ch <- prometheus.MustNewConstMetric(accountReputation, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
-		ch <- prometheus.MustNewConstMetric(accountStatus, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
-		ch <- prometheus.MustNewConstMetric(accountCustomQuota, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
+		ch <- prometheus.MustNewConstMetric(accountCustomQuota, prometheus.GaugeValue, float64(subaccount.CustomQuota), subaccount.ID)
 	}
 }
 
