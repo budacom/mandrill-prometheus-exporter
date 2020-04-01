@@ -31,6 +31,8 @@ var (
 	userReputation  = prometheus.NewDesc("mandrill_user_reputation", "User Mandrill reputation", []string{"username"}, nil)
 	userHourlyQuota = prometheus.NewDesc("mandrill_user_hourlyQuota", "User hourly quota", []string{"username"}, nil)
 	userBacklog     = prometheus.NewDesc("mandrill_user_backlog", "User mail backlog", []string{"username"}, nil)
+
+	senderSent = prometheus.NewDesc("mandrill_sender_sent_total", "Sender total number of sent mails.", []string{"address"}, nil)
 )
 
 type mandrillCollector struct {
@@ -85,6 +87,11 @@ type mandrillUserData struct {
 	Backlog     int
 }
 
+type mandrillSenderData struct {
+	Address string
+	Sent    int
+}
+
 func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
 	//get Tags from Mandrill
@@ -131,6 +138,17 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(userReputation, prometheus.GaugeValue, float64(userData.Reputation), userData.Username)
 	ch <- prometheus.MustNewConstMetric(userHourlyQuota, prometheus.GaugeValue, float64(userData.HourlyQuota), userData.Username)
 	ch <- prometheus.MustNewConstMetric(userBacklog, prometheus.GaugeValue, float64(userData.Backlog), userData.Username)
+
+	//get senders from Mandrill
+	sendersData, err := m.getSenders()
+	if err != nil {
+		log.Print(err)
+	}
+
+	//iterate over tags and get stats
+	for _, sender := range sendersData {
+		ch <- prometheus.MustNewConstMetric(senderSent, prometheus.GaugeValue, float64(sender.Sent), sender.Address)
+	}
 }
 
 func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
@@ -209,6 +227,33 @@ func (m mandrillCollector) getUser() (mandrillUserData, error) {
 
 	if err != nil {
 		return result, err
+	}
+
+	return result, nil
+}
+
+func (m mandrillCollector) getSenders() ([]mandrillSenderData, error) {
+
+	body := bytes.Buffer{}
+	body.WriteString("{\"key\": \"")
+	body.WriteString(m.apiKey)
+	body.WriteString("\"}")
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "https://mandrillapp.com/api/1.0/users/senders.json", &body)
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	result := []mandrillSenderData{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
