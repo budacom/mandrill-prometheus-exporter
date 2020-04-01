@@ -129,7 +129,7 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
 	//iterate over tags and get stats
 	for _, subaccount := range subaccountsData {
-		ch <- prometheus.MustNewConstMetric(accountSentTotal, prometheus.GaugeValue, float64(subaccount.SendTotal), subaccount.ID)
+		ch <- prometheus.MustNewConstMetric(accountSentTotal, prometheus.CounterValue, float64(subaccount.SendTotal), subaccount.ID)
 		ch <- prometheus.MustNewConstMetric(accountReputation, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
 		ch <- prometheus.MustNewConstMetric(accountCustomQuota, prometheus.GaugeValue, float64(subaccount.CustomQuota), subaccount.ID)
 	}
@@ -153,7 +153,7 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
 	//iterate over tags and get stats
 	for _, sender := range sendersData {
-		ch <- prometheus.MustNewConstMetric(senderSent, prometheus.GaugeValue, float64(sender.Sent), sender.Address)
+		ch <- prometheus.MustNewConstMetric(senderSent, prometheus.CounterValue, float64(sender.Sent), sender.Address)
 	}
 }
 
