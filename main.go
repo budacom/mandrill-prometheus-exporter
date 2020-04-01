@@ -27,6 +27,10 @@ var (
 	accountSentTotal   = prometheus.NewDesc("mandrill_account_sent_total", "Accounts total number of sent mails", []string{"subaccount"}, nil)
 	accountReputation  = prometheus.NewDesc("mandrill_account_reputation", "Accounts Mandrill reputation", []string{"subaccount"}, nil)
 	accountCustomQuota = prometheus.NewDesc("mandrill_account_custom_quota", "Accounts Mandrill custom quota", []string{"subaccount"}, nil)
+
+	userReputation  = prometheus.NewDesc("mandrill_user_reputation", "User Mandrill reputation", []string{"username"}, nil)
+	userHourlyQuota = prometheus.NewDesc("mandrill_user_hourlyQuota", "User hourly quota", []string{"username"}, nil)
+	userBacklog     = prometheus.NewDesc("mandrill_user_backlog", "User mail backlog", []string{"username"}, nil)
 )
 
 type mandrillCollector struct {
@@ -74,6 +78,13 @@ type mandrillSubtaccountData struct {
 	SendTotal   int `json:"sent_total"`
 }
 
+type mandrillUserData struct {
+	Username    string
+	Reputation  int
+	HourlyQuota int `json:"hourly_quota"`
+	Backlog     int
+}
+
 func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 
 	//get Tags from Mandrill
@@ -109,6 +120,17 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(accountReputation, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
 		ch <- prometheus.MustNewConstMetric(accountCustomQuota, prometheus.GaugeValue, float64(subaccount.CustomQuota), subaccount.ID)
 	}
+
+	//get User from Mandrill
+	userData, err := m.getUser()
+	if err != nil {
+		log.Print(err)
+	}
+
+	// get user stats
+	ch <- prometheus.MustNewConstMetric(userReputation, prometheus.GaugeValue, float64(userData.Reputation), userData.Username)
+	ch <- prometheus.MustNewConstMetric(userHourlyQuota, prometheus.GaugeValue, float64(userData.HourlyQuota), userData.Username)
+	ch <- prometheus.MustNewConstMetric(userBacklog, prometheus.GaugeValue, float64(userData.Backlog), userData.Username)
 }
 
 func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
@@ -160,6 +182,33 @@ func (m mandrillCollector) getSubaccounts() ([]mandrillSubtaccountData, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	return result, nil
+}
+
+func (m mandrillCollector) getUser() (mandrillUserData, error) {
+
+	body := bytes.Buffer{}
+	body.WriteString("{\"key\": \"")
+	body.WriteString(m.apiKey)
+	body.WriteString("\"}")
+
+	result := mandrillUserData{}
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "https://mandrillapp.com/api/1.0/users/info.json", &body)
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+	if err != nil {
+		return result, err
+	}
+
+	defer resp.Body.Close()
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+
+	if err != nil {
+		return result, err
 	}
 
 	return result, nil
