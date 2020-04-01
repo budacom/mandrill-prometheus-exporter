@@ -23,6 +23,11 @@ var (
 	uniqueOpens  = prometheus.NewDesc("mandrill_unique_opens", "Unique number of mails opened", []string{"tag"}, nil)
 	uniqueClicks = prometheus.NewDesc("mandrill_unique_clicks", "Unique number of clicks", []string{"tag"}, nil)
 	reputation   = prometheus.NewDesc("mandrill_reputation", "Mandrill reputation", []string{"tag"}, nil)
+
+	accountSentTotal   = prometheus.NewDesc("mandrill_account_sent_total", "Accounts total number of sent mails", []string{"subaccount"}, nil)
+	accountReputation  = prometheus.NewDesc("mandrill_account_reputation", "Accounts Mandrill reputation", []string{"subaccount"}, nil)
+	accountCustomQuota = prometheus.NewDesc("mandrill_account_custom_quota", "Accounts Mandrill custom quota", []string{"subaccount"}, nil)
+	accountStatus      = prometheus.NewDesc("mandrill_account_status", "Accounts Mandrill status", []string{"subaccount"}, nil)
 )
 
 type mandrillCollector struct {
@@ -42,6 +47,11 @@ func (m mandrillCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- uniqueOpens
 	ch <- uniqueClicks
 	ch <- reputation
+
+	ch <- accountSentTotal
+	ch <- accountReputation
+	ch <- accountCustomQuota
+	ch <- accountStatus
 }
 
 type mandrillTagData struct {
@@ -57,6 +67,14 @@ type mandrillTagData struct {
 	UniqueOpens  int `json:"unique_opens"`
 	UniqueClicks int `json:"unique_clicks"`
 	Reputation   int
+}
+
+type mandrillSubtaccountData struct {
+	ID          string
+	CustomQuota int `json:"custom_quota"`
+	Reputation  int
+	SendTotal   int `json:"sent_total"`
+	Status      string
 }
 
 func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
@@ -81,6 +99,20 @@ func (m mandrillCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(uniqueClicks, prometheus.CounterValue, float64(tag.UniqueClicks), tag.Tag)
 		ch <- prometheus.MustNewConstMetric(reputation, prometheus.CounterValue, float64(tag.Reputation), tag.Tag)
 	}
+
+	//get Subaccounts from Mandrill
+	subaccountsData, err := m.getSubaccounts()
+	if err != nil {
+		log.Print(err)
+	}
+
+	//iterate over tags and get stats
+	for _, subaccount := range subaccountsData {
+		ch <- prometheus.MustNewConstMetric(accountSentTotal, prometheus.GaugeValue, float64(subaccount.SendTotal), subaccount.ID)
+		ch <- prometheus.MustNewConstMetric(accountReputation, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
+		ch <- prometheus.MustNewConstMetric(accountStatus, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
+		ch <- prometheus.MustNewConstMetric(accountCustomQuota, prometheus.GaugeValue, float64(subaccount.Reputation), subaccount.ID)
+	}
 }
 
 func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
@@ -101,6 +133,33 @@ func (m mandrillCollector) getTags() ([]mandrillTagData, error) {
 	defer resp.Body.Close()
 
 	result := []mandrillTagData{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (m mandrillCollector) getSubaccounts() ([]mandrillSubtaccountData, error) {
+
+	body := bytes.Buffer{}
+	body.WriteString("{\"key\": \"")
+	body.WriteString(m.apiKey)
+	body.WriteString("\"}")
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "https://mandrillapp.com/api/1.0/subaccounts/list.json", &body)
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	result := []mandrillSubtaccountData{}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 
 	if err != nil {
