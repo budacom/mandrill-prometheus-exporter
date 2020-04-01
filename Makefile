@@ -3,7 +3,7 @@
 SERVICE_NAME := mandrill-prometheus-exporter
 
 # Path of the go service inside docker
-DOCKER_GO_SERVICE_PATH := /go/src/github.com/spotahome/mandrill-prometheus-exporter
+DOCKER_GO_SERVICE_PATH := /go/src/github.com/budacom/mandrill-prometheus-exporter
 
 # Shell to use for running scripts
 SHELL := $(shell which bash)
@@ -43,7 +43,7 @@ endif
 # Build the development docker image
 .PHONY: build
 build:
-	docker build -t $(SERVICE_NAME) --build-arg uid=$(UID) --build-arg  gid=$(GID) -f ./docker/Dockerfile .
+	docker build -t $(SERVICE_NAME) --build-arg uid=$(UID) --build-arg  gid=$(GID) -f ./Dockerfile .
 
 # Shell the development docker image
 .PHONY: build

@@ -12,7 +12,7 @@ RUN go get -v \
     && rm -rf /go/src/mandrill-prometheus-exporter \
     && mkdir -p /go/src/mandrill-prometheus-exporter
 
-ENV TZ=Europe/Berlin
+ENV TZ=America/Santiago
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 EXPOSE 9153

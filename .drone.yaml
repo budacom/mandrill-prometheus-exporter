@@ -1,0 +1,9 @@
+pipeline:
+  build:
+    image: plugins/gcr
+    repo: ops-support-191021/mandrill-prometheus-exporter
+    registry: us.gcr.io
+    secrets: [ gcr_json_key ]
+    squash: true
+    when:
+      event: [ push ]
